@@ -20,6 +20,15 @@ export const useOCR = (language = 'eng') => {
     return canvas.toDataURL('image/png');
   };
 
+  const getImageDimensions = (src) => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve({ width: img.width, height: img.height });
+      img.onerror = () => resolve({ width: 800, height: 1131 }); // A4 roughly
+      img.src = src;
+    });
+  };
+
   const scanImage = async (file) => {
     if (!file) {
       throw new Error('No file selected for OCR.');
@@ -38,7 +47,26 @@ export const useOCR = (language = 'eng') => {
       const { data } = await Tesseract.recognize(source, language, {
         langPath: 'https://tessdata.projectnaptha.com/4.0.0',
       });
-      return data?.text?.trim() || '';
+      
+      const dimensions = await getImageDimensions(source);
+      
+      const text = data?.text?.trim() || '';
+      let lines = data?.lines || [];
+
+      // Fallback: If Tesseract didn't return lines array but found text, manually construct lines
+      if (lines.length === 0 && text.length > 0) {
+        lines = text.split('\n').filter(t => t.trim().length > 0).map((t, idx) => ({
+          text: t,
+          bbox: { x0: 20, y0: 40 + (idx * 30), x1: 200, y1: 40 + (idx * 30) } // Fake BBox
+        }));
+      }
+      
+      return {
+        lines,
+        text,
+        width: dimensions.width,
+        height: dimensions.height
+      };
     } finally {
       if (!isPdf) {
         URL.revokeObjectURL(source);

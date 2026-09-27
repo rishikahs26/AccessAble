@@ -1,21 +1,18 @@
 import { GestureRecognizer, FilesetResolver } from '@mediapipe/tasks-vision';
 
 const standardSignLookup = {
-  HELLO: 'Hello / Hi',
-  THANKS: 'Thank you',
-  YES: 'Yes',
-  NO: 'No',
-  PLEASE: 'Please',
-  STOP: 'Stop',
-  HELP: 'Help',
-  VICTORY: 'Victory / Peace',
+  'HELLO / WAIT': 'Hello / Wait (ISL)',
+  'STOP': 'Stop (ISL)',
+  'GOOD / YES': 'Good / Yes (ISL)',
+  'BAD / NO': 'Bad / No (ISL)',
+  'TWO / VICTORY': 'Two / Victory (ISL)',
   'I LOVE YOU': 'I Love You',
-  'POINTING UP': 'Pointing Up'
+  'ONE / YOU': 'One / You (ISL)'
 };
 
 export const getStandardSignMeaning = (gesture) => {
   if (!gesture) return 'Unknown';
-  const key = gesture.split('/')[0].trim().toUpperCase();
+  const key = gesture.trim().toUpperCase();
   return standardSignLookup[key] || 'Standard sign not recognized';
 };
 
@@ -25,15 +22,15 @@ export const getSignFromText = (text) => {
   return standardSignLookup[key] || 'Sign for this text not embedded';
 };
 
-// Map MediaPipe gestures to our signs
+// Map MediaPipe gestures to our ISL contextual signs
 const gestureMapping = {
-  'Open_Palm': 'HELLO',
+  'Open_Palm': 'HELLO / WAIT',
   'Closed_Fist': 'STOP',
-  'Thumb_Up': 'YES',
-  'Thumb_Down': 'NO',
-  'Victory': 'VICTORY',
+  'Thumb_Up': 'GOOD / YES',
+  'Thumb_Down': 'BAD / NO',
+  'Victory': 'TWO / VICTORY',
   'ILoveYou': 'I LOVE YOU',
-  'Pointing_Up': 'POINTING UP'
+  'Pointing_Up': 'ONE / YOU'
 };
 
 let gestureRecognizer = null;
@@ -50,20 +47,26 @@ export const initializeGestureRecognizer = async () => {
       modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task',
       delegate: 'GPU'
     },
-    runningMode: 'IMAGE'
+    runningMode: 'VIDEO'
   });
 
   return gestureRecognizer;
 };
 
-export const detectGestureFromImage = async (image) => {
+export const detectGestureFromImage = async (videoElement) => {
   if (!gestureRecognizer) {
     await initializeGestureRecognizer();
   }
 
-  const result = await gestureRecognizer.recognize(image);
+  // Ensure video is playing and ready
+  if (!videoElement || videoElement.readyState !== 4) return 'IDLE (NO SIGN)';
+
+  const nowInMs = Date.now();
+  const result = gestureRecognizer.recognizeForVideo(videoElement, nowInMs);
   if (result.gestures && result.gestures.length > 0) {
     const gesture = result.gestures[0][0].categoryName;
+    // Don't report "None" as a valid gesture
+    if (gesture === 'None') return 'IDLE (NO SIGN)';
     return gestureMapping[gesture] || gesture;
   }
   return 'IDLE (NO SIGN)';

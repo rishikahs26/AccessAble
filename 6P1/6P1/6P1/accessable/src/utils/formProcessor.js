@@ -1,5 +1,5 @@
-﻿export const extractFormFields = (text, language = 'eng') => {
-  const lines = (text || '').split('\n');
+export const extractFormFields = (ocrLines, language = 'eng') => {
+  if (!ocrLines || !Array.isArray(ocrLines)) return [];
 
   const keywordSets = {
     eng: [
@@ -67,36 +67,48 @@
   const keywords = keywordSets[language] || keywordSets.eng;
 
   const found = [];
-  const processedLines = [];
 
-  // First pass: collect all potential field lines
-  lines.forEach(rawLine => {
-    const line = rawLine.trim();
-    if (!line || line.length < 2) return;
+  // Pass: extract fields with bounding boxes
+  ocrLines.forEach((lineObj, idx) => {
+    if (!lineObj) return;
+    
+    // Support both Tesseract objects {text, bbox} and raw strings
+    const isString = typeof lineObj === 'string';
+    const rawText = isString ? lineObj : lineObj.text;
+    
+    if (!rawText) return;
+    
+    const rawLine = rawText.trim();
+    
+    // Extract bbox or generate a fake sequential one if missing
+    const bbox = (!isString && lineObj.bbox) 
+      ? lineObj.bbox 
+      : { x0: 20, y0: 40 + (idx * 20), x1: 100, y1: 40 + (idx * 20) };
+    
+    if (rawLine.length < 2 || rawLine.length > 100) return; // Too long for a field label
+    if (/^\d+\.?\s*$/.test(rawLine)) return; // Just numbers
+    if (/^[A-Za-z]$/.test(rawLine)) return; // Single letters
 
-    if (line.length > 200) return; // Too long, probably content
-    if (/^\d+\.?\s*$/.test(line)) return; // Just numbers
-    if (/^[A-Za-z]$/.test(line)) return; // Single letters
+    const lowerLine = rawLine.toLowerCase();
 
-    processedLines.push(line);
-  });
-
-  // Second pass: extract fields
-  processedLines.forEach(line => {
-    const lowerLine = line.toLowerCase();
-
-    // Check for keywords or separators
-    const hasKeyword = keywords.some(k => lowerLine.includes(k));
-    const hasSeparator = /[:\-–—=]/.test(line);
-    const hasColon = line.includes(':');
-    const looksLikeField = hasKeyword || hasSeparator || hasColon;
+    // STRICT CHECK: To avoid extracting headings like "Registration Form"
+    // A valid field label should ideally have a colon, a separator, OR match a known field keyword exactly.
+    const hasKeyword = keywords.some(k => {
+      // Use whitespace boundaries instead of \b to support non-ASCII languages (Tamil, Hindi, etc.)
+      const regex = new RegExp(`(^|\\s|[.,:])${k}(\\s|[.,:]|$)`, 'i');
+      return regex.test(lowerLine);
+    });
+    
+    const hasSeparator = /[:\-–—=]/.test(rawLine);
+    const looksLikeField = hasKeyword || hasSeparator;
 
     if (!looksLikeField) return;
 
-    let candidate = line;
+    let candidate = rawLine;
 
-    if (hasSeparator || hasColon) {
-      const parts = line.split(/[:\-–—=]+/).map(p => p.trim()).filter(Boolean);
+    // If it has a colon or separator, the label is usually everything before it
+    if (hasSeparator) {
+      const parts = rawLine.split(/[:\-–—=]+/).map(p => p.trim()).filter(Boolean);
       if (parts.length > 0) {
         candidate = parts[0];
       }
@@ -104,23 +116,27 @@
 
     candidate = candidate
       .replace(/^\d+\.?\s*/, '')
+      // eslint-disable-next-line no-useless-escape
       .replace(/[\[\]\(\)]/g, '')
-      .replace(/[^\p{L}\p{N}\s-]/gu, ' ')
+      .replace(/[^ \p{L}\p{N}\s-]/gu, ' ')
       .replace(/\s+/g, ' ')
       .trim();
 
     if (candidate.length < 2 || candidate.length > 50) return;
 
     const normalizedCandidate = candidate.toLowerCase();
-    if (found.some(f => f.toLowerCase() === normalizedCandidate)) return;
+    
+    // Prevent duplicates
+    if (found.some(f => f.label.toLowerCase() === normalizedCandidate)) return;
 
+    // eslint-disable-next-line no-control-regex
     const formatted = /^[\x00-\x7F\s]+$/.test(candidate)
       ? candidate.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ')
       : candidate;
 
-    found.push(formatted);
+    found.push({ label: formatted, bbox });
   });
 
-  console.log('Form processing result:', { originalText: text, processedLines, extractedFields: found });
+  console.log('Form processing result:', { extractedFields: found });
   return found;
 };

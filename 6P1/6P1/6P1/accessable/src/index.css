@@ -4,7 +4,8 @@ body {
   user-select: none; /* Prevents accidental highlighting for accessibility */
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #000000; /* High Contrast Black */
+  color: #FFFFFF; /* High Contrast White Text */
   min-height: 100vh;
 }
 
@@ -19,12 +20,12 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #fbbf24; /* amber-400 */
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+  background: #f59e0b; /* amber-500 */
 }
 
 /* Glass morphism effect */
@@ -51,46 +52,26 @@ input:focus, textarea:focus, button:focus {
 /* Focus styles for accessibility */
 button:focus,
 input:focus,
-textarea:focus {
-  outline: 2px solid #667eea;
-  outline-offset: 2px;
+textarea:focus,
+a:focus {
+  outline: 4px solid #facc15; /* yellow-400 */
+  outline-offset: 4px;
 }
 
-/* Input field text visibility */
-input, textarea {
-  color: #111827; /* gray-900 */
-}
-
-input::placeholder, textarea::placeholder {
-  color: #6b7280; /* gray-500 */
-}
-
-/* Dark mode inputs */
-.bg-zinc-950 input,
-.bg-zinc-900 input,
-.bg-slate-800 input {
-  color: white;
-}
-
-.bg-zinc-950 input::placeholder,
-.bg-zinc-900 input::placeholder,
-.bg-slate-800 input::placeholder {
-  color: #9ca3af; /* gray-400 */
-}
 
 /* Custom input styles for better visibility */
 .input-field {
-  @apply text-gray-900 bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+  @apply text-black bg-white border-2 border-white rounded-xl px-4 py-3 focus:ring-4 focus:ring-yellow-400 focus:border-yellow-400 font-bold text-lg;
 }
 
 .input-field-dark {
-  @apply text-white bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+  @apply text-black bg-white border-2 border-white rounded-xl px-4 py-3 focus:ring-4 focus:ring-yellow-400 focus:border-yellow-400 font-bold text-lg;
 }
 
 .input-field::placeholder {
-  @apply text-gray-400;
+  @apply text-gray-500 font-normal;
 }
 
 .input-field-dark::placeholder {
-  @apply text-gray-500;
+  @apply text-gray-500 font-normal;
 }

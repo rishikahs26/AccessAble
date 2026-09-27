@@ -37,7 +37,7 @@ function App() {
   };
 
   return (
-    <div className={`min-h-screen ${userMode === 'impaired' ? 'bg-black' : 'bg-slate-50'}`}>
+    <div className="min-h-screen bg-black text-white selection:bg-amber-400 selection:text-black">
       {!user ? (
         isLogin ? (
           <Login onLogin={handleLogin} onSwitchToRegister={switchToRegister} />
