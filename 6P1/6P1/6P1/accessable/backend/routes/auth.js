@@ -6,6 +6,17 @@ const authMiddleware = require('../middleware/auth');
 
 const router = express.Router();
 
+const getSecret = () => {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('FATAL: JWT_SECRET environment variable is not set.');
+    }
+    return 'accessable-secret-dev-only';
+  }
+  return secret;
+};
+
 router.post('/register', async (req, res) => {
   const { name, email, password } = req.body;
   if (!name || !email || !password) {
@@ -20,7 +31,7 @@ router.post('/register', async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = await User.create({ name, email, password: hashedPassword });
-    const token = jwt.sign({ id: user._id, email: user.email, name: user.name }, process.env.JWT_SECRET || 'accessable-secret', { expiresIn: '7d' });
+    const token = jwt.sign({ id: user._id, email: user.email, name: user.name }, getSecret(), { expiresIn: '7d' });
 
     res.status(201).json({ user: { id: user._id, name: user.name, email: user.email }, token });
   } catch (error) {
@@ -46,7 +57,7 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'Invalid email or password' });
     }
 
-    const token = jwt.sign({ id: user._id, email: user.email, name: user.name }, process.env.JWT_SECRET || 'accessable-secret', { expiresIn: '7d' });
+    const token = jwt.sign({ id: user._id, email: user.email, name: user.name }, getSecret(), { expiresIn: '7d' });
     res.json({ user: { id: user._id, name: user.name, email: user.email }, token });
   } catch (error) {
     console.error(error);

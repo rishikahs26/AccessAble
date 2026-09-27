@@ -31,7 +31,11 @@ export const useAssistant = (language = 'en-US') => {
         console.warn(`No suitable voice found for ${language}, using default`);
       }
 
-      utterance.onend = () => setTimeout(resolve, 500);
+      utterance.onend = () => resolve();
+      utterance.onerror = (e) => {
+        console.error('Speech synthesis error:', e);
+        resolve();
+      };
       window.speechSynthesis.speak(utterance);
     });
   };

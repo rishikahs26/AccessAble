@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Eye, EyeOff, Mail, Lock, ArrowRight } from 'lucide-react';
+import { validateEmail } from '../../utils/validation';
 
 const Login = ({ onLogin, onSwitchToRegister }) => {
   const [email, setEmail] = useState('');
@@ -19,17 +20,19 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
       return;
     }
 
-    if (!email.includes('@')) {
-      setError('Please enter a valid email');
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.isValid) {
+      setError(emailValidation.message);
       setIsLoading(false);
       return;
     }
+    const cleanEmail = emailValidation.sanitized;
 
     try {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: cleanEmail, password }),
       });
 
       const data = await response.json();
@@ -51,36 +54,41 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-black flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo/Brand */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl mb-4">
-            <span className="text-2xl font-black text-white">A</span>
+          <div className="inline-flex items-center justify-center w-24 h-24 bg-yellow-400 border-4 border-white rounded-2xl mb-4">
+            <span className="text-5xl font-black text-black">A</span>
           </div>
-          <h1 className="text-3xl font-black text-gray-900 mb-2">AccessAble</h1>
-          <p className="text-gray-600">Inclusive communication for everyone</p>
+          <h1 className="text-4xl font-black text-white uppercase tracking-wider mb-2">AccessAble</h1>
+          <p className="text-xl font-bold text-yellow-400 uppercase">Inclusive communication</p>
         </div>
 
         {/* Login Form */}
-        <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">Welcome Back</h2>
+        <div className="bg-zinc-900 rounded-3xl border-4 border-yellow-400 p-8 shadow-2xl">
+          <h2 className="text-3xl font-black text-white mb-8 text-center uppercase tracking-wide">Welcome Back</h2>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Email Field */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="email" className="block text-lg font-bold text-yellow-400 mb-2 uppercase">
                 Email Address
               </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-black h-6 w-6" />
                 <input
                   id="email"
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="input-field w-full pl-10 pr-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter your email"
+                  onChange={(e) => {
+                    let val = e.target.value.toLowerCase();
+                    // Auto-format spoken 'at' and 'dot' for visual feedback
+                    val = val.replace(/\b(at)\b/g, '@').replace(/\b(dot)\b/g, '.').replace(/\s+/g, '');
+                    setEmail(val);
+                  }}
+                  className="w-full pl-12 pr-4 py-4 text-black bg-white border-4 border-yellow-400 rounded-xl focus:outline-none focus:ring-4 focus:ring-yellow-400 font-black text-xl placeholder-gray-600"
+                  placeholder="ENTER YOUR EMAIL"
                   required
                 />
               </div>
@@ -88,34 +96,34 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
 
             {/* Password Field */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="password" className="block text-lg font-bold text-yellow-400 mb-2 uppercase">
                 Password
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-black h-6 w-6" />
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="input-field w-full pl-10 pr-12 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter your password"
+                  className="w-full pl-12 pr-12 py-4 text-black bg-white border-4 border-yellow-400 rounded-xl focus:outline-none focus:ring-4 focus:ring-yellow-400 font-black text-xl placeholder-gray-600"
+                  placeholder="ENTER YOUR PASSWORD"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-black hover:text-gray-700 focus:outline-none focus:ring-4 focus:ring-yellow-400 rounded-full p-1"
                 >
-                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  {showPassword ? <EyeOff className="h-6 w-6" /> : <Eye className="h-6 w-6" />}
                 </button>
               </div>
             </div>
 
             {/* Error Message */}
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                <p className="text-red-600 text-sm">{error}</p>
+              <div className="bg-red-950 border-4 border-red-500 rounded-xl p-4">
+                <p className="text-red-400 text-lg font-bold text-center uppercase">{error}</p>
               </div>
             )}
 
@@ -123,40 +131,40 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 px-4 rounded-xl font-semibold hover:from-blue-700 hover:to-purple-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full bg-yellow-400 text-black py-4 px-6 rounded-xl font-black text-2xl uppercase tracking-wider hover:bg-yellow-300 focus:outline-none focus:ring-8 focus:ring-white transition-all disabled:opacity-50 flex items-center justify-center gap-3 border-4 border-black"
             >
               {isLoading ? (
                 <>
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Signing In...
+                  <div className="w-8 h-8 border-4 border-black border-t-transparent rounded-full animate-spin"></div>
+                  SIGNING IN...
                 </>
               ) : (
                 <>
-                  Sign In
-                  <ArrowRight className="h-5 w-5" />
+                  SIGN IN
+                  <ArrowRight className="h-8 w-8" />
                 </>
               )}
             </button>
           </form>
 
           {/* Footer */}
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
-              Don't have an account?{' '}
+          <div className="mt-8 text-center bg-black p-4 rounded-2xl border-2 border-white">
+            <p className="text-lg font-bold text-white uppercase">
+              NO ACCOUNT?{' '}
               <button
                 onClick={onSwitchToRegister}
-                className="text-blue-600 hover:text-blue-700 font-medium"
+                className="text-yellow-400 hover:text-white underline focus:outline-none focus:ring-4 focus:ring-yellow-400 p-2 rounded-lg"
               >
-                Sign up
+                SIGN UP
               </button>
             </p>
           </div>
         </div>
 
         {/* Accessibility Note */}
-        <div className="mt-6 text-center">
-          <p className="text-xs text-gray-500">
-            For accessibility support, use voice commands or contact support
+        <div className="mt-8 text-center bg-zinc-900 border-2 border-yellow-400 p-4 rounded-xl">
+          <p className="text-sm font-bold text-yellow-400 uppercase tracking-widest">
+            FOR ACCESSIBILITY, USE VOICE COMMANDS OR SCREEN READERS
           </p>
         </div>
       </div>
