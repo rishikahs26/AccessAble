@@ -25,7 +25,19 @@
 
     <title>AccessAble - Smart Assistant</title>
 
-    <!-- Inline critical fallback styles (Tailwind classes are compiled at build time) -->
+    <!-- Tailwind CSS via CDN (pinned version for stability) -->
+    <script src="https://cdn.tailwindcss.com/3.4.1"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: { sans: ['Inter', 'sans-serif'] },
+          }
+        }
+      }
+    </script>
+
+    <!-- Inline critical fallback styles -->
     <style>
       *, *::before, *::after { box-sizing: border-box; }
       body {
