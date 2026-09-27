@@ -12,27 +12,10 @@ connectDB();
 const app = express();
 
 // ── CORS ─────────────────────────────────────────────────────────────────────
-// In production the React build is served from this same Express process, so
-// cross-origin requests only come from external clients (e.g. mobile dev tools).
-// CLIENT_ORIGIN env var restricts which origin is allowed; omit it to allow all
-// (useful for local development).
-const allowedOrigin = process.env.CLIENT_ORIGIN;
-
-app.use(
-  cors({
-    origin: allowedOrigin
-      ? (origin, callback) => {
-          // Allow requests with no origin (mobile apps, curl, Postman)
-          if (!origin || origin === allowedOrigin) {
-            callback(null, true);
-          } else {
-            callback(new Error(`CORS policy: origin ${origin} not allowed`));
-          }
-        }
-      : true, // allow all origins when CLIENT_ORIGIN is not set (dev mode)
-    credentials: true,
-  })
-);
+// In production, React is served by this same Express server, so API calls
+// from the browser are same-origin and never trigger CORS.
+// We allow all origins so mobile apps, Postman, and future frontends work too.
+app.use(cors({ origin: true, credentials: true }));
 
 // ── Body parsing ──────────────────────────────────────────────────────────────
 app.use(express.json({ limit: '10mb' }));
