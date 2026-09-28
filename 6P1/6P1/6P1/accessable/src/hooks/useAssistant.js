@@ -1,106 +1,98 @@
 import { useState } from 'react';
 
+// Wait up to 3s for voices to load (needed on Android/WebView)
+const getVoicesAsync = () =>
+  new Promise((resolve) => {
+    const v = window.speechSynthesis.getVoices();
+    if (v.length > 0) return resolve(v);
+    const handler = () => {
+      window.speechSynthesis.removeEventListener('voiceschanged', handler);
+      resolve(window.speechSynthesis.getVoices());
+    };
+    window.speechSynthesis.addEventListener('voiceschanged', handler);
+    setTimeout(() => {
+      window.speechSynthesis.removeEventListener('voiceschanged', handler);
+      resolve(window.speechSynthesis.getVoices());
+    }, 3000);
+  });
+
 export const useAssistant = (language = 'en-US') => {
   const [isMicActive, setIsMicActive] = useState(false);
 
-  const speak = (text) => {
+  // ── speak — waits until speech fully finishes before resolving ────────────
+  const speak = async (text) => {
+    if (!text || !window.speechSynthesis) return;
+
+    window.speechSynthesis.cancel();
+    await new Promise((r) => setTimeout(r, 150)); // let cancel settle
+
+    const voices = await getVoicesAsync();
+    const langCode = language.split('-')[0];
+    const isIndic = ['hi','ta','te','kn','ml','bn','gu','mr','pa'].includes(langCode);
+
+    let voice = null;
+    if (isIndic) {
+      voice = voices.find(v => v.lang === language)
+           || voices.find(v => v.lang.startsWith(langCode))
+           || voices.find(v => v.lang.startsWith('en-IN'))
+           || voices.find(v => v.lang.startsWith('en'))
+           || voices[0];
+    } else {
+      voice = voices.find(v => v.lang === language)
+           || voices.find(v => v.lang.startsWith(langCode))
+           || voices[0];
+    }
+
     return new Promise((resolve) => {
-      window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
-
-      // Set language and try to find appropriate voice
       utterance.lang = language;
-      const voices = window.speechSynthesis.getVoices();
-      const langCode = language.split('-')[0]; // e.g., 'en' from 'en-US'
-
-      // For Indian languages, try multiple fallbacks
-      let preferredVoice = null;
-      if (['hi', 'ta', 'te', 'kn', 'ml', 'bn', 'gu', 'mr', 'pa', 'or', 'as'].includes(langCode)) {
-        // Try exact language match first
-        preferredVoice = voices.find(voice => voice.lang === language) ||
-                        voices.find(voice => voice.lang.startsWith(langCode)) ||
-                        voices.find(voice => voice.lang.startsWith('en')); // Fallback to English
-      } else {
-        preferredVoice = voices.find(voice => voice.lang.startsWith(langCode)) || voices[0];
-      }
-
-      if (preferredVoice) {
-        utterance.voice = preferredVoice;
-        console.log(`Using voice: ${preferredVoice.name} for language: ${language}`);
-      } else {
-        console.warn(`No suitable voice found for ${language}, using default`);
-      }
-
-      utterance.onend = () => resolve();
-      utterance.onerror = (e) => {
-        console.error('Speech synthesis error:', e);
-        resolve();
-      };
+      utterance.rate = 0.9;
+      utterance.pitch = 1;
+      utterance.volume = 1;
+      if (voice) utterance.voice = voice;
+      utterance.onend   = () => resolve();
+      utterance.onerror = (e) => { if (e.error !== 'interrupted') console.error('TTS:', e.error); resolve(); };
       window.speechSynthesis.speak(utterance);
     });
   };
 
+  // ── listen — waits 400ms after speak finishes before opening mic ──────────
   const listen = () => {
     return new Promise((resolve) => {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) { console.error('SpeechRecognition not supported'); return resolve(''); }
 
-      if (!SpeechRecognition) {
-        console.error('Speech Recognition NOT supported in this browser.');
-        return resolve('');
-      }
+      // 400ms gap so the TTS audio tail doesn't bleed into the mic
+      setTimeout(() => {
+        const recognition = new SR();
+        recognition.lang = language;
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
 
-      const recognition = new SpeechRecognition();
-      recognition.lang = language;
-      recognition.continuous = false;
-      recognition.interimResults = false;
+        let resolved = false;
+        const done = (val) => {
+          if (!resolved) {
+            resolved = true;
+            clearTimeout(tid);
+            setIsMicActive(false);
+            resolve(val);
+          }
+        };
 
-      let resolved = false;
-      const safeResolve = (value) => {
-        if (!resolved) {
-          resolved = true;
-          clearTimeout(timeoutId);
-          setIsMicActive(false);
-          resolve(value);
-        }
-      };
+        const tid = setTimeout(() => {
+          try { recognition.abort(); } catch (_) {}
+          done('');
+        }, 14000);
 
-      const timeoutId = setTimeout(() => {
-        if (!resolved) {
-          console.warn('Voice input timed out');
-          try { recognition.stop(); } catch (e) {}
-          safeResolve('');
-        }
-      }, 12000);
+        recognition.onstart  = () => setIsMicActive(true);
+        recognition.onresult = (e) => done(e.results?.[0]?.[0]?.transcript?.toLowerCase().trim() || '');
+        recognition.onerror  = (e) => { if (e.error !== 'aborted') console.error('STT:', e.error); done(''); };
+        recognition.onend    = () => done('');
 
-      recognition.onstart = () => {
-        setIsMicActive(true);
-        console.log('Microphone is NOW RECORDING...');
-      };
-
-      recognition.onresult = (e) => {
-        const result = e.results[0][0]?.transcript?.toLowerCase() || '';
-        console.log('Voice Input Received:', result);
-        safeResolve(result);
-      };
-
-      recognition.onerror = (err) => {
-        console.error('Speech Error:', err.error); 
-        safeResolve('');
-      };
-
-      recognition.onend = () => {
-        if (!resolved) {
-          console.log('Recognition ended with no speech. Returning empty string.');
-          safeResolve('');
-        }
-      };
-
-      try {
-        recognition.start();
-      } catch (startErr) {
-        console.error('Recognition start failed', startErr);
-        safeResolve('');
-      }
+        try { recognition.start(); }
+        catch (err) { console.error('recognition.start failed:', err); done(''); }
+      }, 400);
     });
   };
 
